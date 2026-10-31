@@ -70,6 +70,8 @@ RUNS = {
     'v15a': from_digest('digest_v15a_v15t_obs.txt', 'v15a'),
     'v15t': from_digest('digest_v15a_v15t_obs.txt', 'v15t'),
     'v15b': from_digest('digest_v15b_obs.txt', 'v15b'),
+    'v12b2': from_digest('digest_v12b2_v12c2_obs.txt', 'v12b2'),
+    'v12c2': from_digest('digest_v12b2_v12c2_obs.txt', 'v12c2'),
 }
 
 PAIRS = [
@@ -90,6 +92,10 @@ PAIRS = [
     ('v15a', 'v15b', DEV48, 'same agent, two runs (noise)'),
     ('v11s', 'v15b', DEV48, 'better locating, run 2'),
     ('v6s', 'v15b', DEV48, 'better locating, run 2'),
+    ('v12b', 'v12b2', DEV48, 'split, enforced limit, two runs'),
+    ('v11s', 'v12b2', DEV48, 'split, enforced limit, run 2'),
+    ('v12c', 'v12c2', DEV48A, 'split, fixer cannot read, two runs'),
+    ('v11s', 'v12c2', DEV48A, 'split, fixer cannot read, run 2'),
 ]
 
 if __name__ == '__main__':
@@ -100,6 +106,6 @@ if __name__ == '__main__':
         lo, hi = boot_ci(sa, sb, tasks)
         print(f'{a:6} {b:6} {len(tasks):5} {len(sa):3} {len(sb):3} {oa:6} {ob:6} {len(sb) - len(sa):+4} '
               f'{f"[{lo:+d},{hi:+d}]":>10} {mcnemar_p(oa, ob):6.2f}  {note}')
-    union = set().union(*(RUNS[r] & set(DEV48) for r in RUNS if r != 'v12c'))
+    union = set().union(*(RUNS[r] & set(DEV48) for r in RUNS if r not in ('v12c', 'v12c2')))
     print(f'union of all dev48 runs: {len(union)} tasks; solved by every full run: '
-          f'{len(set.intersection(*(RUNS[r] & set(DEV48) for r in RUNS if r != "v12c")))}')
+          f'{len(set.intersection(*(RUNS[r] & set(DEV48) for r in RUNS if r not in ("v12c", "v12c2"))))}')
