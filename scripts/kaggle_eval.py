@@ -21,6 +21,7 @@ SUBMISSION_FILES: dict[str, str] = {}  # filled in by push_eval.py
 TASK_IDS: list[str] = []  # filled in by push_eval.py
 RUN_NAME = ''  # filled in by push_eval.py
 ADAPTER = ''  # filled in by push_eval.py --adapter-kernel: PEFT dir name under the mounted kernel output
+ORACLE_HINT = False  # push_eval.py --oracle-hint: append the reference patch's files, lines and functions to each issue
 
 os.environ['LITELLM_LOCAL_MODEL_COST_MAP'] = 'True'
 os.environ['TRANSFORMERS_NO_TF'] = '1'
@@ -151,11 +152,37 @@ models = server.create_model_registry(
 )
 log('vLLM server up')
 
+def oracle_tasks(src: Path, dest: Path) -> Path:
+    """Copy tasks.jsonl, appending where the reference patch changes code (test files excluded)."""
+    import re
+    out = []
+    for line in src.read_text().splitlines():
+        t = json.loads(line)
+        places, f = [], None
+        for l in t['patch'].splitlines():
+            if l.startswith('+++ '):
+                f = l[4:].removeprefix('b/')
+            elif l.startswith('@@') and f and not re.search(r'(^|/)(tests?|testing)/|(^|/)test_|conftest', f):
+                m = re.match(r'@@ -(\d+)(?:,(\d+))? \+\d+(?:,\d+)? @@ ?(.*)', l)
+                start, n, ctx = int(m.group(1)), int(m.group(2) or 1), m.group(3).strip()
+                where = f'{f} lines {start}-{start + max(n, 1) - 1}'
+                places.append(where + (f' (inside `{ctx}`)' if ctx else ''))
+        if places:
+            t['problem_statement'] += ('\n\nNote: the fix belongs in these places (line numbers are '
+                                       'before your change):\n' + '\n'.join(f'- {p}' for p in places))
+        out.append(json.dumps(t))
+    dest.write_text('\n'.join(out) + '\n')
+    return dest
+
+
+TASKS_PATH = oracle_tasks(DATA_DIR / 'tasks.jsonl', WORKING_DIR / 'tasks_oracle.jsonl') if ORACLE_HINT else DATA_DIR / 'tasks.jsonl'
+log(f'oracle hint: {ORACLE_HINT}')
+
 # ---------------------------------------------------------------- evaluate
 section = yaml.safe_load((AGENT_DIR / 'eval_config.yaml').read_text())['evaluation']
 limits, gen_constraints = build_submission_limits()
 config = EvalConfig(
-    tasks_path=DATA_DIR / 'tasks.jsonl',
+    tasks_path=TASKS_PATH,
     snapshots_dir=DATA_DIR / 'snapshots',
     results_dir=RESULTS_DIR,
     submission_dir=AGENT_DIR,
