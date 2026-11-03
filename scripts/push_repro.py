@@ -17,7 +17,8 @@ from push_eval import ROOT, kaggle_username
 OLD_RUNS = {'v6': ['v6', 'v6b'], 'v7': ['v7'], 'v8': ['v8'], 'v9': ['v9'], 'v10': ['v10'],
             'pub24': ['pub24'], 'v11': ['v11'], 'v11b': ['v11b']}
 NEW_RUNS = {'v6s': ['v6s'], 'v11s': ['v11s'], 'v12': ['v12'], 'v12b': ['v12b'], 'v12c': ['v12c'],
-            'v13smoke': ['v13smoke']}
+            'v13smoke': ['v13smoke'], 'v12b2': ['v12b2'], 'v12c2': ['v12c2'],
+            'v15a': ['v15a'], 'v15b': ['v15b'], 'v15t': ['v15t']}
 PAIRS = [
     ('v11', 'v11b', 'dev48', 'same agent, two runs (noise)'),
     ('v6', 'v6s', 'dev48', 'same agent, old vs matched agent sandbox'),
@@ -30,6 +31,12 @@ PAIRS = [
     ('v11s', 'v12b', 'dev48', 'split, enforced limit'),
     ('v11s', 'v12c', 'dev48a', 'split, fixer cannot read (24 tasks)'),
     ('v11s', 'v13smoke', 'dev10', 'edits through run_command (10 tasks)'),
+    ('v11s', 'v12b2', 'dev48', 'split, enforced limit (second run)'),
+    ('v11s', 'v12c2', 'dev48a', 'split, fixer cannot read (second run, 24 tasks)'),
+    ('v11s', 'v15a', 'dev48', 'function-level locator'),
+    ('v11s', 'v15b', 'dev48', 'function-level locator (second run)'),
+    ('v15a', 'v15b', 'dev48', 'same agent, two runs (noise)'),
+    ('v15a', 'v15t', 'dev48', 'sampling T=1.0, top_k 64'),
 ]
 
 

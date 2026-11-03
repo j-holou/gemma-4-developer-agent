@@ -155,7 +155,7 @@ for name, kernels in NEW_RUNS.items():
 print('\n== PART3 solved tasks per run ==')
 print(f"{'run':8} {'tasks':>5} {'notebook':>9} {'scorer-like':>11}")
 for name in [*OLD_RUNS, *NEW_RUNS]:
-    n_tasks = {'v12c': len(DEV48A), 'v13smoke': len(DEV10)}.get(name, len(DEV48))
+    n_tasks = {'v12c': len(DEV48A), 'v12c2': len(DEV48A), 'v13smoke': len(DEV10)}.get(name, len(DEV48))
     print(f"{name:8} {n_tasks:>5} {len(OLD_GRADE[name]) if name in OLD_GRADE else '-':>9} {len(SOLVED[name]):>11}")
 print(f"flips across old runs: {flips['fail->pass']} fail->pass, {flips['pass->fail']} pass->fail")
 
