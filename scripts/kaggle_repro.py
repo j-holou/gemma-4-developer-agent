@@ -31,6 +31,9 @@ DEV48: list[str] = []
 DEV48A: list[str] = []
 DEV10: list[str] = []
 PAIRS: list[tuple] = []  # (a, b, 'dev48' | 'dev48a' | 'dev10', note)
+PART = 'all'  # 'regrade': grade gold (if DO_GOLD) and OLD_RUNS, save repro_part.json and stop
+DO_GOLD = True  # 'summary': read the regrade parts' repro_part.json, then the new runs and pairs
+PRIOR: list[str] = []  # kernels whose repro_part.json the summary part merges
 
 COMP = Path(glob.glob('/kaggle/input/**/tasks.jsonl', recursive=True)[0]).parent
 WHEELHOUSE = Path(glob.glob('/kaggle/input/**/adk_submission-*.whl', recursive=True)[0]).parent
@@ -122,14 +125,16 @@ t0 = time.time()
 # __SCORER_ENV__
 
 # ---------------------------------------------------------------- 2. scorer-like grader
-ev_sc = make_evaluator(scorer_like=True)
-gold_sc = {tid: grade(ev_sc, tid, tasks[tid].patch) for tid in GOLD_TASKS}
-print(f'PART2 gold patches passing, scorer-like grader: {sum(gold_sc.values())} of {len(GOLD_TASKS)} '
-      f'({time.time() - t0:.0f}s)', flush=True)
-
 SOLVED, OLD_GRADE = {}, {}
 flips = {'fail->pass': 0, 'pass->fail': 0}
-for name, kernels in OLD_RUNS.items():
+if PART != 'summary':
+    ev_sc = make_evaluator(scorer_like=True)
+if PART != 'summary' and DO_GOLD:
+    gold_sc = {tid: grade(ev_sc, tid, tasks[tid].patch) for tid in GOLD_TASKS}
+    print(f'PART2 gold patches passing, scorer-like grader: {sum(gold_sc.values())} of {len(GOLD_TASKS)} '
+          f'({time.time() - t0:.0f}s)', flush=True)
+
+for name, kernels in (OLD_RUNS.items() if PART != 'summary' else []):
     old, new = set(), set()
     for k in kernels:
         rows, patches = kernel_results(k)
@@ -144,6 +149,24 @@ for name, kernels in OLD_RUNS.items():
     flips['pass->fail'] += len(old - new)
     print(f'RUN {name}: notebook grader {len(old)}, scorer-like {len(new)} '
           f'({time.time() - t0:.0f}s)', flush=True)
+if PART == 'regrade':
+    Path('/kaggle/working/repro_part.json').write_text(json.dumps(
+        {'solved': {k: sorted(v) for k, v in SOLVED.items()},
+         'old_grade': {k: sorted(v) for k, v in OLD_GRADE.items()}, 'flips': flips}))
+    print(f'saved repro_part.json ({time.time() - t0:.0f}s)')
+    sys.exit(0)
+for k in PRIOR:
+    hits = glob.glob(f'/kaggle/input/**/{k}/repro_part.json', recursive=True)
+    if not hits:
+        print(f'NO PART OUTPUT for {k}', flush=True)
+        continue
+    d = json.loads(Path(hits[0]).read_text())
+    SOLVED.update({n: set(v) for n, v in d['solved'].items()})
+    OLD_GRADE.update({n: set(v) for n, v in d['old_grade'].items()})
+    for f in flips:
+        flips[f] += d['flips'][f]
+    for n in d['solved']:
+        print(f"RUN {n}: notebook grader {len(d['old_grade'][n])}, scorer-like {len(d['solved'][n])} (from {k})")
 for name, kernels in NEW_RUNS.items():
     s = set()
     for k in kernels:
@@ -154,7 +177,7 @@ for name, kernels in NEW_RUNS.items():
 # ---------------------------------------------------------------- 3. summary table
 print('\n== PART3 solved tasks per run ==')
 print(f"{'run':8} {'tasks':>5} {'notebook':>9} {'scorer-like':>11}")
-for name in [*OLD_RUNS, *NEW_RUNS]:
+for name in [*OLD_GRADE, *NEW_RUNS]:
     n_tasks = {'v12c': len(DEV48A), 'v12c2': len(DEV48A), 'v13smoke': len(DEV10)}.get(name, len(DEV48))
     print(f"{name:8} {n_tasks:>5} {len(OLD_GRADE[name]) if name in OLD_GRADE else '-':>9} {len(SOLVED[name]):>11}")
 print(f"flips across old runs: {flips['fail->pass']} fail->pass, {flips['pass->fail']} pass->fail")
@@ -183,7 +206,7 @@ for a, b, which, note in PAIRS:
     lo, hi = boot_ci(sa, sb, ts)
     print(f'{a:6} {b:6} {len(ts):5} {len(sa):3} {len(sb):3} {oa:6} {ob:6} {len(sb) - len(sa):+4} '
           f'{f"[{lo:+d},{hi:+d}]":>10} {mcnemar_p(oa, ob):6.2f}  {note}')
-full = [r for r in SOLVED if r not in ('v12c', 'v13smoke')]
+full = [r for r in SOLVED if r not in ('v12c', 'v12c2', 'v13smoke')]
 union = set().union(*(SOLVED[r] & set(DEV48) for r in full))
 print(f'union of dev48 runs: {len(union)} tasks; solved by every full run: '
       f'{len(set.intersection(*(SOLVED[r] & set(DEV48) for r in full)))}')

@@ -1,6 +1,11 @@
 """Push the reproduction kernel (scripts/kaggle_repro.py) that recomputes the paper's numbers.
 
-    python scripts/push_repro.py [--public]
+    python scripts/push_repro.py --part a [--public]   # gold + v6..v9 regrade (~3.5 h)
+    python scripts/push_repro.py --part b [--public]   # v10, pub24, v11, v11b regrade (~3 h)
+    python scripts/push_repro.py --part summary [--public]   # after a and b finish: all tables
+
+One kernel used to do everything but was cancelled after about 7 hours, so the slow
+regrade is split over two kernels whose solved sets the summary kernel reads.
     kaggle kernels logs <user>/gemma-agent-paper-repro | grep -E 'PART|RUN|flips|union|^v|^pub'
 
 It mounts our eval kernels' outputs, so for a public copy those kernels must be public too.
@@ -18,7 +23,8 @@ OLD_RUNS = {'v6': ['v6', 'v6b'], 'v7': ['v7'], 'v8': ['v8'], 'v9': ['v9'], 'v10'
             'pub24': ['pub24'], 'v11': ['v11'], 'v11b': ['v11b']}
 NEW_RUNS = {'v6s': ['v6s'], 'v11s': ['v11s'], 'v12': ['v12'], 'v12b': ['v12b'], 'v12c': ['v12c'],
             'v13smoke': ['v13smoke'], 'v12b2': ['v12b2'], 'v12c2': ['v12c2'],
-            'v15a': ['v15a'], 'v15b': ['v15b'], 'v15t': ['v15t']}
+            'v15a': ['v15a'], 'v15b': ['v15b'], 'v15t': ['v15t'], 'v15o': ['v15o']}
+PART_RUNS = {'a': ['v6', 'v7', 'v8', 'v9'], 'b': ['v10', 'pub24', 'v11', 'v11b']}
 PAIRS = [
     ('v11', 'v11b', 'dev48', 'same agent, two runs (noise)'),
     ('v6', 'v6s', 'dev48', 'same agent, old vs matched agent sandbox'),
@@ -37,6 +43,8 @@ PAIRS = [
     ('v11s', 'v15b', 'dev48', 'function-level locator (second run)'),
     ('v15a', 'v15b', 'dev48', 'same agent, two runs (noise)'),
     ('v15a', 'v15t', 'dev48', 'sampling T=1.0, top_k 64'),
+    ('v15a', 'v15o', 'dev48', 'told where the fix goes (oracle locations)'),
+    ('v15b', 'v15o', 'dev48', 'told where the fix goes, vs run 2'),
 ]
 
 
@@ -47,11 +55,17 @@ def ids(name):
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument('--public', action='store_true')
+    ap.add_argument('--part', choices=['a', 'b', 'summary'], required=True)
     a = ap.parse_args()
     user = kaggle_username()
     kname = lambda r: f'gemma-eval-{r}'  # noqa: E731
-    old = {n: [kname(r) for r in rs] for n, rs in OLD_RUNS.items()}
-    new = {n: [kname(r) for r in rs] for n, rs in NEW_RUNS.items()}
+    slug = 'gemma-agent-paper-repro' + ('' if a.part == 'summary' else f'-{a.part}')
+    parts = [f'gemma-agent-paper-repro-{p}' for p in PART_RUNS]
+    if a.part == 'summary':
+        old, new = {}, {n: [kname(r) for r in rs] for n, rs in NEW_RUNS.items()}
+    else:
+        old = {n: [kname(r) for r in rs] for n, rs in OLD_RUNS.items() if n in PART_RUNS[a.part]}
+        new = {}
     src = (ROOT / 'scripts/kaggle_repro.py').read_text(encoding='utf-8')
     src = src.replace('# __SCORER_ENV__', (ROOT / 'scripts/scorer_env.py').read_text(encoding='utf-8'), 1)
     fill = {'OLD_RUNS: dict[str, list[str]] = {}': f'OLD_RUNS = {old!r}',
@@ -60,21 +74,24 @@ def main() -> None:
             'DEV48: list[str] = []': f'DEV48 = {ids("dev48.txt")!r}',
             'DEV48A: list[str] = []': f'DEV48A = {ids("dev48a.txt")!r}',
             'DEV10: list[str] = []': f'DEV10 = {ids("dev10.txt")!r}',
-            'PAIRS: list[tuple] = []': f'PAIRS = {PAIRS!r}'}
+            'PAIRS: list[tuple] = []': f'PAIRS = {PAIRS!r}',
+            "PART = 'all'": f"PART = {'summary' if a.part == 'summary' else 'regrade'!r}",
+            'DO_GOLD = True': f'DO_GOLD = {a.part == "a"}',
+            'PRIOR: list[str] = []': f'PRIOR = {parts if a.part == "summary" else []!r}'}
     for k, v in fill.items():
         assert k in src, k
         src = src.replace(k, v, 1)
     compile(src, 'repro.py', 'exec')
     runs = [k for ks in [*old.values(), *new.values()] for k in ks]
     meta = {
-        'id': f'{user}/gemma-agent-paper-repro', 'title': 'gemma-agent-paper-repro', 'code_file': 'repro.py',
+        'id': f'{user}/{slug}', 'title': slug, 'code_file': 'repro.py',
         'language': 'python', 'kernel_type': 'script', 'is_private': not a.public,
         'enable_gpu': False, 'enable_internet': False,
         'competition_sources': ['gemma-4-developer-agent'],
         'dataset_sources': ['metric/gemma-4-developer-agent-wheelhouse',
                             'zbigniewkirchner/gemma-4-agent-local-eval-wheels',
                             'zbigniewkirchner/gemma-4-agent-local-eval-pythons'],
-        'kernel_sources': [f'{user}/{k}' for k in runs],
+        'kernel_sources': [f'{user}/{k}' for k in [*runs, *(parts if a.part == 'summary' else [])]],
     }
     with tempfile.TemporaryDirectory() as tmp:
         (Path(tmp) / 'repro.py').write_text(src)
