@@ -72,6 +72,7 @@ RUNS = {
     'v15b': from_digest('digest_v15b_obs.txt', 'v15b'),
     'v12b2': from_digest('digest_v12b2_v12c2_obs.txt', 'v12b2'),
     'v12c2': from_digest('digest_v12b2_v12c2_obs.txt', 'v12c2'),
+    'v15o': from_digest('digest_v15o_obs.txt', 'v15o'),
 }
 
 PAIRS = [
@@ -96,6 +97,8 @@ PAIRS = [
     ('v11s', 'v12b2', DEV48, 'split, enforced limit, run 2'),
     ('v12c', 'v12c2', DEV48A, 'split, fixer cannot read, two runs'),
     ('v11s', 'v12c2', DEV48A, 'split, fixer cannot read, run 2'),
+    ('v15a', 'v15o', DEV48, 'told where the fix goes (oracle locations)'),
+    ('v15b', 'v15o', DEV48, 'told where the fix goes, vs run 2'),
 ]
 
 if __name__ == '__main__':
