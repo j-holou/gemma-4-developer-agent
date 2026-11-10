@@ -1,6 +1,6 @@
 ---
 name: swe-tools
-description: Fast helpers for fixing an issue in /workspace. locate.py ranks the source files to edit, lookup.py shows definitions and uses of several names in one call, install_edit.py installs the .git/sr.py search/replace edit helper, find_tests.py finds existing tests, check_patch.py reviews the diff before submit_patch.
+description: Fast helpers for fixing an issue in /workspace. locate.py ranks the source files to edit, lookup.py shows definitions and uses of several names in one call, read.py prints numbered lines of a file, install_edit.py installs the .git/sr.py search/replace edit helper, find_tests.py finds existing tests, check_patch.py reviews the diff before submit_patch.
 ---
 
 # swe-tools
@@ -21,6 +21,14 @@ numbered code, and where it is used.
 - `args={"names": "Console.print, soft_wrap, 'exact error text'"}`
 - `Class.method` finds the method inside that class; a quoted entry is searched as literal text.
 - optional `"file": "rich/console.py"` limits the search to one file or directory.
+
+## scripts/read.py
+Prints numbered lines of one file, at most 80 per call.
+- `args={"file": "rich/console.py", "start": 120, "end": 180}`
+
+locate.py, lookup.py and read.py are reading calls. While no source file is edited, they end
+with a reminder from the 5th call on and are refused after the 8th: edit with `.git/sr.py`
+first, then reading is free again.
 
 ## scripts/install_edit.py
 Writes the edit helper to /workspace/.git/sr.py. Every other script here installs it too, so

@@ -94,6 +94,8 @@ def main() -> None:
         a, b = max(1, start - 2), min(len(lines), start + count + 1)
         print(f'Applied to {path}, now lines {a}-{b}:')
         print('\n'.join(f'{i:5} {lines[i - 1]}' for i in range(a, b + 1)))
+    print('The diff is no longer empty. Make any other edits the issue needs now, then run check_patch.py '
+          'and call submit_patch.')
 
 
 if __name__ == '__main__':
