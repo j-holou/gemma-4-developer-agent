@@ -73,6 +73,8 @@ RUNS = {
     'v12b2': from_digest('digest_v12b2_v12c2_obs.txt', 'v12b2'),
     'v12c2': from_digest('digest_v12b2_v12c2_obs.txt', 'v12c2'),
     'v15o': from_digest('digest_v15o_obs.txt', 'v15o'),
+    'v16o': from_digest('digest_v16o_v16a_obs.txt', 'v16o'),
+    'v16a': from_digest('digest_v16o_v16a_obs.txt', 'v16a'),
 }
 
 PAIRS = [
@@ -99,6 +101,12 @@ PAIRS = [
     ('v11s', 'v12c2', DEV48A, 'split, fixer cannot read, run 2'),
     ('v15a', 'v15o', DEV48, 'told where the fix goes (oracle locations)'),
     ('v15b', 'v15o', DEV48, 'told where the fix goes, vs run 2'),
+    ('v15a', 'v16a', DEV48, 'v16: read.py + no-empty-patch guard'),
+    ('v15b', 'v16a', DEV48, 'v16: read.py + no-empty-patch guard'),
+    ('v15o', 'v16o', DEV48, 'oracle locations, edit helper always installed'),
+    ('v16a', 'v16o', DEV48, 'oracle locations (v16)'),
+    ('v15a', 'v16o', DEV48, 'oracle locations (v16) vs v15'),
+    ('v15b', 'v16o', DEV48, 'oracle locations (v16) vs v15'),
 ]
 
 if __name__ == '__main__':
