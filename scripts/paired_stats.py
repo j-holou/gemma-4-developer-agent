@@ -75,6 +75,8 @@ RUNS = {
     'v15o': from_digest('digest_v15o_obs.txt', 'v15o'),
     'v16o': from_digest('digest_v16o_v16a_obs.txt', 'v16o'),
     'v16a': from_digest('digest_v16o_v16a_obs.txt', 'v16a'),
+    'v16b': from_digest('digest_v16b_v16o2_obs.txt', 'v16b'),
+    'v16o2': from_digest('digest_v16b_v16o2_obs.txt', 'v16o2'),
 }
 
 PAIRS = [
@@ -105,6 +107,13 @@ PAIRS = [
     ('v15b', 'v16a', DEV48, 'v16: read.py + no-empty-patch guard'),
     ('v15o', 'v16o', DEV48, 'oracle locations, edit helper always installed'),
     ('v16a', 'v16o', DEV48, 'oracle locations (v16)'),
+    ('v16a', 'v16b', DEV48, 'same agent, two runs (noise)'),
+    ('v15a', 'v16b', DEV48, 'v16, run 2'),
+    ('v15b', 'v16b', DEV48, 'v16, run 2'),
+    ('v16b', 'v16o2', DEV48, 'oracle locations (v16), run 2'),
+    ('v16a', 'v16o2', DEV48, 'oracle locations (v16), run 2'),
+    ('v16b', 'v16o', DEV48, 'oracle locations (v16)'),
+    ('v16o', 'v16o2', DEV48, 'oracle, two runs (noise)'),
     ('v15a', 'v16o', DEV48, 'oracle locations (v16) vs v15'),
     ('v15b', 'v16o', DEV48, 'oracle locations (v16) vs v15'),
 ]
