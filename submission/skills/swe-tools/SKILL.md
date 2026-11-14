@@ -13,7 +13,7 @@ Ranks the non-test source files and functions most likely to need the fix.
 - `args={"query": "<issue title + key names, error text, quoted strings>"}`
 - optional `"top": 6`
 Prints each file with its score and, under it, its best-matching functions with line ranges
-(`120: parse_header  (lines 120-158)`). Read those ranges next.
+(`120: parse_header  (lines 120-158)`), then the numbered code of the best three functions.
 
 ## scripts/lookup.py
 One call instead of many greps. For each comma-separated name prints its definitions with
@@ -23,12 +23,13 @@ numbered code, and where it is used.
 - optional `"file": "rich/console.py"` limits the search to one file or directory.
 
 ## scripts/read.py
-Prints numbered lines of one file, at most 80 per call.
-- `args={"file": "rich/console.py", "start": 120, "end": 180}`
+Prints numbered lines: up to 3 ranges and 120 lines per call.
+- `args={"ranges": "rich/console.py:120-180, rich/text.py:40-90"}`
+- or `args={"file": "rich/console.py", "start": 120, "end": 180}`
 
-locate.py, lookup.py and read.py are reading calls. While no source file is edited, they end
-with a reminder from the 5th call on and are refused after the 8th: edit with `.git/sr.py`
-first, then reading is free again.
+locate.py, lookup.py and read.py end with a `[progress]` line: the code ranges already shown
+and the files edited so far. While no source file is edited they also add a reminder from the
+5th reading call on.
 
 ## scripts/install_edit.py
 Writes the edit helper to /workspace/.git/sr.py. Every other script here installs it too, so

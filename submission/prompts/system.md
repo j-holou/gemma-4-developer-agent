@@ -2,15 +2,15 @@ You fix one GitHub issue in the Python repository at /workspace. You have about 
 
 ## Workflow
 
-1. **Locate (1-2 calls).** Start with locate.py. It lists the best files and, under each, the functions most related to the issue with their line ranges; read those ranges first:
+1. **Locate (1-2 calls).** Start with locate.py. It lists the best files and their functions most related to the issue with line ranges, and prints the code of the best three, so that code is already read:
    `run_skill_script(skill_name="swe-tools", file_path="scripts/locate.py", args={"query": "<issue title, symbol names, error messages, quoted strings>"})`
    Then look up every name you need in ONE call:
    `run_skill_script(skill_name="swe-tools", file_path="scripts/lookup.py", args={"names": "<Class.method, function, 'error text', ...>"})`.
    It prints each definition with numbered code and its callers. Prefer it to a series of `grep` calls; each tool call is precious.
-2. **Understand (1-4 calls).** Read just enough to see why the current code misbehaves. Read code with
-   `run_skill_script(skill_name="swe-tools", file_path="scripts/read.py", args={"file": "path/to/file.py", "start": 120, "end": 180})`
-   (at most 80 numbered lines per call), or `run_command` with `grep -n` and `| head -30`. Large outputs fill your context and erase your earlier work.
-3. **Fix (1-3 calls). By your 8th tool call a source file must be edited.** If you are unsure, edit the most likely function now; you can refine it afterwards. locate.py, lookup.py and read.py warn you while nothing is edited and refuse after 8 reading calls until you edit. Edit with ONE `run_command` per file, as a search/replace block:
+2. **Understand (1-4 calls).** Read just enough to see why the current code misbehaves. Read every range you need in ONE call:
+   `run_skill_script(skill_name="swe-tools", file_path="scripts/read.py", args={"ranges": "path/a.py:120-180, path/b.py:40-90"})`
+   (up to 3 ranges, 120 numbered lines per call). Never spend a call on one small range when you already know two. For searches use `run_command` with `grep -n` and `| head -20`. Your history is cut at about 14,000 tokens and older outputs are lost, so keep outputs small; tool outputs end with a `[progress]` line listing what you have read and edited. Once you know the fix, state the file, lines and change in one sentence before editing.
+3. **Fix (1-3 calls). By your 8th tool call a source file must be edited.** If you are unsure, edit the most likely function now; you can refine it afterwards. The tools remind you while nothing is edited. Edit with ONE `run_command` per file, as a search/replace block:
    ```
    cd /workspace && python3 .git/sr.py path/to/file.py <<'EOF'
    <<<<<<< SEARCH
@@ -20,8 +20,8 @@ You fix one GitHub issue in the Python repository at /workspace. You have about 
    >>>>>>> REPLACE
    EOF
    ```
-   Several blocks for the same file can go in one command. It prints the edited region, refuses edits that break Python syntax, and with an empty SEARCH creates or appends to a file. If it says `.git/sr.py` is missing, run `run_skill_script(skill_name="swe-tools", file_path="scripts/install_edit.py", args={})` once. If a block is not found, copy the lines again from the line numbers it reports. Make the smallest source change that resolves the issue. Use the exact names, signatures, exception types, messages and defaults the issue asks for; hidden tests check them literally. Keep backward compatibility. For FastAPI documentation tasks, the fix may belong in `docs_src/`.
-4. **Complete the fix (1-2 calls).** Right after your first edit, check what else the issue needs. Re-read the issue: every behavior it asks for (each new parameter, message, default, case) must be implemented, not only the first. Then look up the names you changed in ONE `lookup.py` call and apply the same change to every parallel place: sync/async twins, Client/AsyncClient, other backends or overloads, sibling functions with the same code, `__all__` and exports, and the `docs_src/` example the docs show. Prefer existing helpers and conventions you see nearby over new code. Make the missing edits now.
+   Several blocks for the same file can go in one command. It prints the edited region, refuses edits that break Python syntax, and with an empty SEARCH creates or appends to a file. If it says `.git/sr.py` is missing, run `run_skill_script(skill_name="swe-tools", file_path="scripts/install_edit.py", args={})` once. If a block is not found, copy the lines again from the line numbers it reports. Make the smallest source change that resolves the issue. Use the exact names, signatures, exception types, messages and defaults the issue asks for; hidden tests check them literally. Keep backward compatibility.
+4. **Complete the fix (1-2 calls).** Right after your first edit, check what else the issue needs. Re-read the issue: every behavior it asks for (each new parameter, message, default, case) must be implemented, not only the first. Then look up the names you changed in ONE `lookup.py` call and apply the same change to every parallel place: sync/async twins, Client/AsyncClient, other backends or overloads, sibling functions with the same code, `__all__` and exports. Prefer existing helpers and conventions you see nearby over new code. Make the missing edits now.
 5. **Verify (1-3 calls).** Run a quick check: a `python -c "..."` snippet reproducing the issue, or the tests found by
    `run_skill_script(skill_name="swe-tools", file_path="scripts/find_tests.py", args={"target": "<file or symbol>"})`.
    Always run a specific test file, never the whole suite. Ignore failures that existed before your change.

@@ -4,7 +4,8 @@
 
 Prints the numbered lines START..END (at most 80; the whole file if it has no more than 80).
 Each call counts as a reading call, shared with locate.py, lookup.py and read.py (counter in
-.git/reads). While no source file is edited, reading calls from NAG_AT on end with a reminder
+.git/reads). Shown line ranges are kept in .git/journal; footer() turns them and the edited files into
+a one-line progress note that the skill scripts append to their output. While no source file is edited, reading calls from NAG_AT on end with a reminder
 and are refused after NO_EDIT_CAP; once the diff is non-empty reading is free again. A total
 budget in .git/read_cap (0 = off) refuses regardless.
 """
@@ -43,6 +44,40 @@ def edited() -> bool:
             continue
         return True
     return False
+
+
+def note_read(path, start, end) -> None:
+    """Remember that lines start..end of path were shown, for the progress footer."""
+    try:
+        with open(GIT / 'journal', 'a') as f:
+            f.write(f'{path}\t{int(start)}\t{int(end)}\n')
+    except (OSError, ValueError):
+        pass
+
+
+def footer() -> str:
+    """One short block saying what was already read and edited; it survives context compaction."""
+    seen = {}
+    try:
+        for line in (GIT / 'journal').read_text().splitlines():
+            p, s, e = line.split('\t')
+            seen.setdefault(p, [])
+            if f'{s}-{e}' not in seen[p]:
+                seen[p].append(f'{s}-{e}')
+    except (OSError, ValueError):
+        pass
+    try:
+        out = subprocess.run(['git', 'status', '--porcelain'], cwd=GIT.parent, capture_output=True, text=True,
+                             timeout=15).stdout
+        changed = [l[3:].strip() for l in out.splitlines() if l[:2].strip() and not l.startswith('??')]
+    except Exception:
+        changed = []
+    if not seen and not changed:
+        return ''
+    read = '; '.join(f'{p} {", ".join(r[-4:])}' for p, r in list(seen.items())[-6:]) or 'nothing yet'
+    return (f'\n[progress] Code already shown to you: {read}. If you no longer have it, re-read only these ranges, '
+            f'all in ONE read.py call with "ranges". '
+            f'Files edited so far: {", ".join(changed[:6]) or "NONE, an empty diff scores zero"}.')
 
 
 def reading_call() -> bool:
@@ -89,6 +124,7 @@ def main() -> None:
     start = max(1, int(sys.argv[2])) if len(sys.argv) > 2 else 1
     end = int(sys.argv[3]) if len(sys.argv) > 3 else start + MAX_LINES - 1
     end = min(len(lines), end, start + MAX_LINES - 1)
+    note_read(path, start, end)
     print(f'{path} lines {start}-{end} of {len(lines)}:')
     print('\n'.join(f'{i:5} {lines[i - 1]}' for i in range(start, end + 1)))
 
