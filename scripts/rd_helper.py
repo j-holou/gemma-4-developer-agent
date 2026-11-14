@@ -76,7 +76,7 @@ def footer() -> str:
         return ''
     read = '; '.join(f'{p} {", ".join(r[-4:])}' for p, r in list(seen.items())[-6:]) or 'nothing yet'
     return (f'\n[progress] Code already shown to you: {read}. If you no longer have it, re-read only these ranges, '
-            f'all in ONE read.py call with "ranges". '
+            f'all in ONE read.py call (--ranges "a.py:1-60, b.py:5-40"). '
             f'Files edited so far: {", ".join(changed[:6]) or "NONE, an empty diff scores zero"}.')
 
 

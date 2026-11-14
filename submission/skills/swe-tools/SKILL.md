@@ -5,7 +5,10 @@ description: Fast helpers for fixing an issue in /workspace. locate.py ranks the
 
 # swe-tools
 
-Run each script with `run_skill_script(skill_name="swe-tools", file_path="scripts/<name>.py", args={...})`.
+Call `run_skill_script(skill_name="swe-tools", file_path="scripts/locate.py", args={"query": "..."})` once.
+It installs every script below as `/workspace/.git/t/<name>.py`. From then on run them with `run_command`,
+passing each argument as `--name value`, for example
+`cd /workspace && python3 .git/t/read.py --ranges "rich/console.py:120-180, rich/text.py:40-90"`.
 They read the repository in /workspace and print a short plain-text report.
 
 ## scripts/locate.py
@@ -43,5 +46,5 @@ Finds existing tests that exercise a file or symbol and prints a ready pytest co
 ## scripts/check_patch.py
 Run before every submit_patch. Shows the diff and flags: syntax errors, edits to test or
 config files (the grader discards them), stray untracked files, and an empty patch.
-- `args={"clean": "true"}` also deletes scratch files (repro.py, debug_*.py, ...) left in the repo.
+- `--clean` also deletes scratch files (repro.py, debug_*.py, ...) left in the repo.
 Prints `OK: ready for submit_patch` when nothing is wrong.
