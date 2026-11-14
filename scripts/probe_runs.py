@@ -15,15 +15,16 @@ import glob, json, os, re, collections
 from pathlib import Path
 RUNS = __RUNS__
 tasks = {}
-for tp in glob.glob("/kaggle/input/**/tasks.jsonl", recursive=True):
+for tp in glob.glob("/kaggle/input/competitions/*/tasks.jsonl") + glob.glob("/kaggle/input/*/tasks.jsonl"):  # no recursive glob: the snapshots tree is huge
     for line in open(tp):
         t = json.loads(line); tasks[t.get("instance_id")] = t
     print("TASKS", tp, len(tasks), sorted(t.keys())[:40]); break
 shown_trace = 0
 for run in RUNS:
-    hits = glob.glob(f"/kaggle/input/**/gemma-eval-{run}/results", recursive=True) + glob.glob(f"/kaggle/input/gemma-eval-{run}/results")
+    hits = [h for pat in ("/kaggle/input/gemma-eval-{}/results", "/kaggle/input/*/gemma-eval-{}/results", "/kaggle/input/*/*/gemma-eval-{}/results")
+            for h in glob.glob(pat.format(run))]
     if not hits:
-        print("MISSING", run); continue
+        print("MISSING", run, os.listdir("/kaggle/input")); continue
     res = Path(hits[0])
     print(f"##### RUN {run} files={sorted(p.name for p in res.iterdir())}")
     rows = [json.loads(l) for l in (res / "task_results.jsonl").read_text().splitlines()]
