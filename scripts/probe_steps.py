@@ -56,6 +56,9 @@ for run in RUNS:
                 print("S", run, iid, f"{t:.0f}", f"{t - prev:.0f}", k, int(err), rv,
                       json.dumps(cmd[:160]), json.dumps(obs[:260]), json.dumps(obs[-160:]) if len(obs) > 260 else '""')
                 prev = t
+                if rv:
+                    i = obs.find("Review before submitting")
+                    print("RV", run, iid, json.dumps(obs[i:i + 700]))
 '''
 
 
