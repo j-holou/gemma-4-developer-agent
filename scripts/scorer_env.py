@@ -17,7 +17,9 @@ from packaging.version import Version  # noqa: E402
 import swegemma.harness.agent_runner as agent_runner  # noqa: E402
 import swegemma.harness.verification as verification  # noqa: E402
 
-COMP = Path(glob.glob('/kaggle/input/**/tasks.jsonl', recursive=True)[0]).parent
+COMP = Path(next(h for pat in ('/kaggle/input/competitions/gemma-4-developer-agent/tasks.jsonl',
+                                 '/kaggle/input/gemma-4-developer-agent/tasks.jsonl', '/kaggle/input/**/tasks.jsonl')
+                 for h in glob.glob(pat, recursive=True))).parent
 EXTRA = Path(glob.glob('/kaggle/input/**/inline_snapshot-*.whl', recursive=True)[0]).parent
 PYDS = Path(glob.glob('/kaggle/input/**/cpython-3.13-linux.tgz.bin', recursive=True)[0]).parent
 
@@ -43,6 +45,15 @@ for w in [*(COMP / 'wheels').glob('*.whl'), *EXTRA.glob('*.whl'), *PYDS.glob('*.
 OWN = {'fastapi/fastapi': 'fastapi', 'Textualize/rich': 'rich', 'psf/requests': 'requests', 'encode/httpx': 'httpx'}
 ONLY_FOR = {'pytest_httpbin': {'psf/requests'}, 'httpbin': {'psf/requests'}, 'flasgger': {'psf/requests'},
             'brotlicffi': {'psf/requests', 'encode/httpx'}, 'brotli': {'encode/httpx'}, 'zstandard': {'encode/httpx'}}
+# Held-out dev set from other repositories (scripts/push_heldout_build.py), when mounted.
+for _r in glob.glob('/kaggle/input/*/gemma-heldout-build/heldout/repos.json') + \
+        glob.glob('/kaggle/input/*/*/gemma-heldout-build/heldout/repos.json') + \
+        glob.glob('/kaggle/input/gemma-heldout-build/heldout/repos.json'):
+    OWN.update({k: norm(v) for k, v in json.loads(Path(_r).read_text()).items()})
+    for w in (Path(_r).parent / 'wheels').glob('*.whl'):
+        name, ver = w.name.split('-')[:2]
+        WHEELS.setdefault(norm(name), []).append((Version(ver), w))
+    break
 HOST_TAG = f'cp{sys.version_info.major}{sys.version_info.minor}'
 PY = {HOST_TAG: Path(sys.executable)}
 

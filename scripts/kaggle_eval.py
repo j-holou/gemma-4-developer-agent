@@ -101,7 +101,12 @@ MODEL_PATH = find_dir(
     '/kaggle/input/models/google/gemma-4/other/gemma-4-31b-it-qat-w4a16-ct/*',
     '/kaggle/input/gemma-4/other/gemma-4-31b-it-qat-w4a16-ct/*',
 )
-log(f'data={DATA_DIR} model={MODEL_PATH} tasks={len(TASK_IDS)}')
+HELDOUT = False  # push_eval.py --heldout: tasks and snapshots from the gemma-heldout-build kernel output
+TASK_DIR = DATA_DIR
+if HELDOUT:
+    TASK_DIR = find_dir('/kaggle/input/*/gemma-heldout-build/heldout', '/kaggle/input/*/*/gemma-heldout-build/heldout',
+                        '/kaggle/input/gemma-heldout-build/heldout')
+log(f'data={DATA_DIR} tasks from {TASK_DIR} model={MODEL_PATH} tasks={len(TASK_IDS)}')
 
 # ---------------------------------------------------------------- model server
 import litellm  # noqa: E402
@@ -175,7 +180,7 @@ def oracle_tasks(src: Path, dest: Path) -> Path:
     return dest
 
 
-TASKS_PATH = oracle_tasks(DATA_DIR / 'tasks.jsonl', WORKING_DIR / 'tasks_oracle.jsonl') if ORACLE_HINT else DATA_DIR / 'tasks.jsonl'
+TASKS_PATH = oracle_tasks(TASK_DIR / 'tasks.jsonl', WORKING_DIR / 'tasks_oracle.jsonl') if ORACLE_HINT else TASK_DIR / 'tasks.jsonl'
 log(f'oracle hint: {ORACLE_HINT}')
 
 # ---------------------------------------------------------------- evaluate
@@ -183,7 +188,7 @@ section = yaml.safe_load((AGENT_DIR / 'eval_config.yaml').read_text())['evaluati
 limits, gen_constraints = build_submission_limits()
 config = EvalConfig(
     tasks_path=TASKS_PATH,
-    snapshots_dir=DATA_DIR / 'snapshots',
+    snapshots_dir=TASK_DIR / 'snapshots',
     results_dir=RESULTS_DIR,
     submission_dir=AGENT_DIR,
     models=models,

@@ -37,6 +37,7 @@ def main() -> None:
     ap.add_argument('--adapter-kernel', help='kernel whose output holds adapters/<name>/ (e.g. user/gemma-lora-train)')
     ap.add_argument('--adapter-name', default='edit_early')
     ap.add_argument('--oracle-hint', action='store_true', help='tell the agent where the reference patch changes code')
+    ap.add_argument('--heldout', action='store_true', help='run on the held-out set from user/gemma-heldout-build')
     ap.add_argument('--dry-run', action='store_true')
     a = ap.parse_args()
 
@@ -57,6 +58,8 @@ def main() -> None:
     source = source.replace("RUN_NAME = ''", f'RUN_NAME = {a.name!r}', 1)
     if a.oracle_hint:
         source = source.replace('ORACLE_HINT = False', 'ORACLE_HINT = True', 1)
+    if a.heldout:
+        source = source.replace('HELDOUT = False', 'HELDOUT = True', 1)
     if a.adapter_kernel:
         source = source.replace("ADAPTER = ''", f'ADAPTER = {a.adapter_name!r}', 1)
 
@@ -82,7 +85,8 @@ def main() -> None:
                             'zbigniewkirchner/gemma-4-agent-local-eval-wheels',
                             'zbigniewkirchner/gemma-4-agent-local-eval-pythons'],
         'competition_sources': ['gemma-4-developer-agent'],
-        'kernel_sources': [a.adapter_kernel] if a.adapter_kernel else [],
+        'kernel_sources': ([a.adapter_kernel] if a.adapter_kernel else [])
+                          + ([f'{kaggle_username()}/gemma-heldout-build'] if a.heldout else []),
         'model_sources': ['google/gemma-4/Other/gemma-4-31b-it-qat-w4a16-ct/2'],
     }
     with tempfile.TemporaryDirectory() as tmp:
