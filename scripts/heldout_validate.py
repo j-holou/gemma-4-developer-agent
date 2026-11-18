@@ -28,14 +28,17 @@ def junit(venv, repo, files):
     with tempfile.NamedTemporaryFile(suffix='.xml', delete=False) as f:
         xml = f.name
     try:
-        run([f'{venv}/bin/python', '-m', 'pytest', '-q', '-p', 'no:cacheprovider', '-o', 'addopts=',
-             f'--junitxml={xml}', *files], repo, timeout=300, env=env)
+        p = run([f'{venv}/bin/python', '-m', 'pytest', '-q', '-p', 'no:cacheprovider', '-o', 'addopts=',
+                 f'--junitxml={xml}', *files], repo, timeout=300, env=env)
+        if os.environ.get('HELDOUT_DEBUG'):
+            print('PYTEST', repo.name, p.returncode, (p.stdout[-300:] + p.stderr[-300:]).replace('\n', ' | '), flush=True)
         res = {}
         for tc in ET.parse(xml).getroot().iter('testcase'):
             name = f"{tc.get('classname')}::{tc.get('name')}"
             res[name] = not any(c.tag in ('failure', 'error') for c in tc)
         return res
-    except Exception:
+    except Exception as e:
+        print('JUNIT-FAIL', repo.name, repr(e)[:200], flush=True)
         return None
 
 
@@ -47,21 +50,29 @@ def validate_repo(clone, venv, tasks, work):
     out = []
     for t in tasks:
         repo = work / t['instance_id']
-        if repo.exists() or run(['git', 'worktree', 'add', '-q', '--detach', str(repo), t['base_commit']],
-                                clone).returncode:
+        wt = run(['git', 'worktree', 'add', '-q', '--detach', str(repo), t['base_commit']], clone)
+        if repo.exists() and wt.returncode == 0:
+            pass
+        elif wt.returncode:
+            print('SKIP worktree', t['instance_id'], wt.stderr[-200:].replace('\n', ' '), flush=True)
             continue
         files = sorted({l[6:] for l in t['test_patch'].splitlines() if l.startswith('+++ b/') and l.endswith('.py')
                         and '/conftest' not in l and not l.endswith('__init__.py')})
         if not files or not apply(repo, t['test_patch']):
+            print('SKIP test_patch', t['instance_id'], files[:3], flush=True)
             continue
         before = junit(venv, repo, [f for f in files if (repo / f).exists()])
         if not apply(repo, t['patch']):
+            print('SKIP patch', t['instance_id'], flush=True)
             continue
         after = junit(venv, repo, files)
         if before is None or after is None or not after:
+            print('SKIP tests', t['instance_id'], before is None, after is None, flush=True)
             continue
         f2p = sorted(n for n, ok in after.items() if ok and not before.get(n, False))
         broken = sorted(n for n, ok in after.items() if not ok)
+        if not (f2p and not broken):
+            print('DROP', t['instance_id'], 'f2p', len(f2p), 'broken', len(broken), broken[:2], flush=True)
         if f2p and not broken:
             out.append(dict(t, FAIL_TO_PASS=f2p, n_tests=len(after)))
             print('KEEP', t['instance_id'], len(f2p), flush=True)

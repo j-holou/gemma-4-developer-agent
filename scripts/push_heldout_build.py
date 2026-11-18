@@ -30,6 +30,8 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 REPOS = __REPOS__
 PER = __PER__
+DEBUG = __DEBUG__
+REPOS = REPOS[:3] if DEBUG else REPOS
 W = Path("/kaggle/working/build"); OUT = Path("/kaggle/working/heldout")
 for d in (W / "repos", W / "venvs", OUT / "snapshots", OUT / "wheels"):
     d.mkdir(parents=True, exist_ok=True)
@@ -41,8 +43,8 @@ def sh(cmd, cwd=None, env=None):
     return r
 
 print(sh("pip install -q uv").stderr[-300:], flush=True)
-UV = shutil.which("uv") or "uv"
-print(sh(f"{UV} python install 3.13").stderr[-300:], flush=True)
+UV = f"{sys.executable} -m uv"
+_p = sh(f"{UV} python install 3.13"); print("UVPY", _p.returncode, _p.stdout[-200:], _p.stderr[-300:], flush=True)
 
 def clone(slug):
     name = slug.split("/")[1]
@@ -55,21 +57,24 @@ print(sh(f"{sys.executable} {W/'heldout_mine.py'} {W/'repos'} {W/'candidates.jso
 
 def venv(name):
     v, r = W / "venvs" / name, W / "repos" / name
-    env = dict(os.environ, VIRTUAL_ENV=str(v))
-    sh(f"{UV} venv -q -p 3.13 {v}")
-    sh(f"{UV} pip install -q pytest -e .", r, env)
+    env = {k: x for k, x in os.environ.items() if not k.startswith(("UV_", "PIP_", "PYTHON"))} | {"VIRTUAL_ENV": str(v)}
+    a = sh(f"{UV} venv -q -p 3.13 {v}")
+    b = sh(f"{UV} pip install -q --python {v}/bin/python pytest -e .", r, env)
+    print("VENV", name, a.returncode, b.returncode, (a.stderr[-300:] + b.stderr[-300:]).replace("\n", " | "), flush=True)
     for g in ("tests", "test", "testing", "dev"):
-        sh(f"{UV} pip install -q --group {g}", r, env)
-        sh(f"{UV} pip install -q -e '.[{g}]'", r, env)
+        sh(f"{UV} pip install -q --python {v}/bin/python --group {g}", r, env)
+        sh(f"{UV} pip install -q --python {v}/bin/python -e '.[{g}]'", r, env)
     for f in ("requirements/tests.txt", "requirements/test.txt", "requirements-test.txt", "test-requirements.txt"):
         if (r / f).exists():
-            sh(f"{UV} pip install -q -r {f}", r, env)
+            sh(f"{UV} pip install -q --python {v}/bin/python -r {f}", r, env)
+    c = sh(f"{v}/bin/python -c 'import pytest; print(pytest.__version__)'")
+    print("VENVCHECK", name, c.returncode, c.stdout.strip(), c.stderr[-200:].replace("\n", " | "), flush=True)
     return name
 with ThreadPoolExecutor(4) as ex:
     list(ex.map(venv, names))
 print("venvs done", flush=True)
 
-r = sh(f"{sys.executable} {W/'heldout_validate.py'} {W/'repos'} {W/'venvs'} {W/'candidates.jsonl'} {OUT/'tasks.jsonl'} --per-repo {PER}")
+r = sh(f"HELDOUT_DEBUG={DEBUG} {sys.executable} {W/'heldout_validate.py'} {W/'repos'} {W/'venvs'} {W/'candidates.jsonl'} {OUT/'tasks.jsonl'} --per-repo {PER}")
 print(r.stdout[-20000:], r.stderr[-3000:], flush=True)
 shutil.rmtree(OUT / "worktrees", ignore_errors=True)
 tasks = [json.loads(l) for l in (OUT / "tasks.jsonl").read_text().splitlines()] if (OUT / "tasks.jsonl").exists() else []
@@ -94,7 +99,7 @@ for t in tasks:
 
 reqs = set()
 for name in names:
-    fr = sh(f"{UV} pip freeze", W / "repos" / name, dict(os.environ, VIRTUAL_ENV=str(W / "venvs" / name))).stdout
+    fr = sh(f"{UV} pip freeze --python {W/'venvs'/name}/bin/python", W / "repos" / name, dict(os.environ, VIRTUAL_ENV=str(W / "venvs" / name))).stdout
     for l in fr.splitlines():
         if l and not l.startswith(("-e", "#")) and " @ " not in l and l.split("==")[0].lower() not in {v.lower() for v in own.values()}:
             reqs.add(l.strip())
@@ -113,7 +118,8 @@ for t in tasks:
 
 def main() -> None:
     per = int(sys.argv[sys.argv.index('--per-repo') + 1]) if '--per-repo' in sys.argv else 5
-    src = (KERNEL.replace('__REPOS__', repr(REPOS)).replace('__PER__', str(per))
+    debug = int('--debug' in sys.argv)
+    src = (KERNEL.replace('__REPOS__', repr(REPOS)).replace('__PER__', str(per)).replace('__DEBUG__', str(debug))
            .replace('__MINE__', repr((ROOT / 'scripts/heldout_mine.py').read_text()))
            .replace('__VALIDATE__', repr((ROOT / 'scripts/heldout_validate.py').read_text())))
     compile(src, 'build.py', 'exec')
