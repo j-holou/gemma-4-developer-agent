@@ -1,0 +1,8 @@
+temperature: 0.2
+top_p: 0.95
+# 16384 (the sample default) makes vLLM refuse any call whose prompt passes
+# 16,384 tokens, since prompt + output must fit in 32,768.
+max_output_tokens: 8192
+thinking_config:
+  thinking_budget: 1024
+  include_thoughts: true

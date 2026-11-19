@@ -1,0 +1,13 @@
+# Per-task budgets for the scoring run. v7 tried the public 8 min / 28 calls and
+# solved no extra tasks (11/48 vs 13/48), so v8 is back to 5 min / 20 calls.
+evaluation:
+  # Also bounds the grader's pytest run: some test modules need ~100-120 s, so
+  # a lower value can fail a correct patch.
+  timeout_seconds: 240
+  # The harness appends "Only N tool call(s) remaining ... call submit_patch
+  # soon" to every tool result once 10 or fewer calls remain (for budgets of
+  # 20+). Agents ignore call limits written in the prompt; this cap is what
+  # makes them edit and submit. The warning starts at call 10.
+  max_tool_calls: 20
+  max_time_minutes: 5
+  max_turns: 80
